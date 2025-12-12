@@ -16,6 +16,8 @@ Term = rvsdg.Term
 TermList = rvsdg.TermList
 _w = rvsdg.wildcard
 
+i64 = egglog.i64
+
 
 def egraph_optimize(egraph: egglog.EGraph):
     rule_schedule = make_schedule()
@@ -176,7 +178,7 @@ def ruleset_simplify_builtin_arith(
             ),
             argvec[0] == lhs,
             argvec[1] == rhs,
-            argvec.length() == 2,
+            egglog.eq(argvec.length()).to(i64(2)),
         ).then(
             union(call.getPort(0)).with_(io),
             union(call.getPort(1)).with_(ctor(lhs, rhs)),
@@ -213,7 +215,7 @@ def ruleset_simplify_builtin_print(
                 args=rvsdg.TermList(argvec),
             ),
             argvec[0] == printee,
-            argvec.length() == 1,
+            egglog.eq(argvec.length()).to(i64(1)),
         ).then(
             union(call.getPort(0)).with_(builtin_ctor(io, printee)),
             union(call.getPort(0)).with_(call.getPort(1)),
@@ -259,7 +261,7 @@ def create_ruleset_struct__get_field__(w_obj, field_pos: int):
                 args=TermList(argvec),
             ),
             argvec[0] == struct,
-            argvec.length() == 1,
+            egglog.eq(argvec.length()).to(i64(1)),
         ).then(
             union(call.getPort(0)).with_(io),
             union(call.getPort(1)).with_(
