@@ -972,9 +972,6 @@ class Lowering:
 
         needed_shared_libs = ("mlir_c_runner_utils", "mlir_runner_utils")
         shared_libs = [find_library(x) for x in needed_shared_libs]
-        import os.path
-
-        shared_libs.append(os.path.abspath("./libnbrt.so"))
         print(shared_libs)
         return self.jit_compile_extra(llmod, input_types, output_types)
 
