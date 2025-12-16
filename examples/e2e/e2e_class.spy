@@ -1,0 +1,11 @@
+@struct
+class Point:
+    x: i32
+    y: i32
+
+
+def main() -> int:
+    p = Point(10, 32)
+    c = p.x + p.y
+    print(c)
+    return 0

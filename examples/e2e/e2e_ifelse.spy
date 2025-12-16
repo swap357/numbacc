@@ -1,0 +1,22 @@
+def main() -> i32:
+    a = 23
+    b = 46
+    if a > b:
+        c = a - b
+        print("a is bigger")
+    else:
+        c = b - a
+        print("b is bigger")
+    print('endif')
+    print(c)
+    a = 435
+    if a > b:
+        c = a - b
+        print("a is bigger")
+    else:
+        c = b - a
+        print("b is bigger")
+    print('endif')
+    print(c)
+
+    return 0
