@@ -25,6 +25,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Check for updates
         id: check
@@ -46,6 +48,7 @@ jobs:
           BRANCH="${{ steps.check.outputs.branch_name }}"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git fetch origin main
           git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
           git reset --hard origin/main
           sed -i "s|spylang/spy [a-f0-9]\{40\}|spylang/spy ${{ steps.check.outputs.latest_sha }}|" Makefile
