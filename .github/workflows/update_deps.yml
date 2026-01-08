@@ -26,7 +26,7 @@ jobs:
           CURRENT=$(grep -oE 'spylang/spy [a-f0-9]{40}' Makefile | grep -oE '[a-f0-9]{40}')
           echo "latest_sha=$LATEST" >> "$GITHUB_OUTPUT"
           echo "current_sha=$CURRENT" >> "$GITHUB_OUTPUT"
-          echo "branch_name=deps/update-spy-${LATEST:0:8}" >> "$GITHUB_OUTPUT"
+          echo "branch_name=deps/update-spy" >> "$GITHUB_OUTPUT"
           if [ "$LATEST" = "$CURRENT" ]; then
             echo "needs_update=false" >> "$GITHUB_OUTPUT"
           else
@@ -37,17 +37,14 @@ jobs:
         if: steps.check.outputs.needs_update == 'true'
         run: |
           BRANCH="${{ steps.check.outputs.branch_name }}"
-          if git ls-remote --exit-code --heads origin "$BRANCH" >/dev/null 2>&1; then
-            echo "Branch exists, skipping"
-            exit 0
-          fi
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
+          git checkout -b "$BRANCH" 2>/dev/null || git checkout "$BRANCH"
+          git reset --hard origin/main
           sed -i "s|spylang/spy [a-f0-9]\{40\}|spylang/spy ${{ steps.check.outputs.latest_sha }}|" Makefile
           git add Makefile
           git commit -m "deps: update spy to ${{ steps.check.outputs.latest_sha }}"
-          git push origin "$BRANCH"
+          git push --force-with-lease origin "$BRANCH"
 
   build-test:
     needs: check-update
