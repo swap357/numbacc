@@ -3,7 +3,14 @@ name: update spy
 on:
   schedule:
     - cron: '0 6 * * *'
+  pull_request:
+    paths:
+      - .github/workflows/update_deps.yml
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   check-update:
