@@ -5,7 +5,7 @@ deps/sealir:
 	bash scripts/checkout.sh https://github.com/sklam/sealir wip/updates_fixups deps/sealir
 
 deps/spy:
-	bash scripts/checkout.sh https://github.com/spylang/spy f53b7676bb36778a46156978a7a7694953bfed51 deps/spy
+	bash scripts/checkout.sh https://github.com/spylang/spy 49304dec85d7c1f872c562b2c7a7f2ae893f800f deps/spy
 
 
 build:
