@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import base64
-from collections import defaultdict
 import ctypes
+from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Callable, Sequence
@@ -13,25 +13,21 @@ import mlir.dialects.func as func
 import mlir.dialects.scf as scf
 import mlir.execution_engine as execution_engine
 import mlir.ir as ir
-
 import mlir.runtime as runtime
-from mlir.dialects.transform.interpreter import apply_named_sequence
-
-from mlir.ir import _GlobalDebug
-
-
-from spy.fqn import FQN
-
-from .mlir_passes import PassManager
 import numpy as np
-
 from mlir.dialects import llvm
+from mlir.dialects.transform.interpreter import apply_named_sequence
+from mlir.ir import _GlobalDebug
 from sealir import ase
+from sealir.dispatchtable import DispatchTableBuilder, dispatchtable
 from sealir.rvsdg import grammar as rg
 from sealir.rvsdg import internal_prefix
+from spy.fqn import FQN
 
 from nbcc.developer import TODO
+
 from ..frontend import grammar as sg
+from .mlir_passes import PassManager
 
 # ## MLIR Backend Implementation
 #
@@ -119,32 +115,68 @@ class Backend:
 
         Convert SealIR types to MLIR types for compilation.
         """
-        match ty:
-            case sg.TypeExpr(name=str(name), args=()):
-                fqn = FQN(name)
-                if name == "mlir::type::()":
-                    return None
-                elif fqn.namespace.fullname == "mlir::type":
-                    return ir.Type.parse(fqn.symbol_name, context=self.context)
-                else:
-                    match name:
-                        case "builtins::i32":
-                            return self.i32
-                        case "types::NoneType":
-                            return self.none_type
 
-                        case "mlir_tensor_lib::make_tensor_type[mlir::type::f64]::TensorType":
-                            TODO(
-                                "TODO: lower_type mlir_tensor_lib::make_tensor_type[f64]::TensorType "
-                            )
-                            return self.tensor_1d_f64
-                        case "llm_tensor::make_tensor_type_2d[mlir::type::f64]::TensorType":
-                            TODO(
-                                "TODO: lower_type mlir_tensor_lib::make_tensor_type[f64]::TensorType "
-                            )
-                            return self.tensor_2d_f64
+        return self._dispatch_lower_type(self, fqn=FQN(ty.name), args=ty.args)
 
-        raise NotImplementedError(f"unknown type: {ty}")
+    @dispatchtable
+    @staticmethod
+    def _dispatch_lower_type(disp: DispatchTableBuilder) -> None:
+        @disp.default
+        def _unknown_type(self, fqn: FQN, args: tuple):
+            raise NotImplementedError(f"unknown type: {fqn}")
+
+        def type_name_matches(fullname):
+            def wrap(self, fqn: FQN, args: tuple) -> bool:
+                return fqn.fullname == fullname
+
+            return wrap
+
+        @disp.case(type_name_matches("mlir::type::()"))
+        def _handle_void(self, fqn: FQN, args: tuple):
+            return None
+
+        @disp.case(
+            lambda self, fqn, args: fqn.namespace.fullname == "mlir::type"
+        )
+        def _handle_mlir_types_by_parsing(self, fqn: FQN, args: tuple):
+            return ir.Type.parse(fqn.symbol_name, context=self.context)
+
+        def by_typename(fullname: str):
+            def wrap(self, fqn, args):
+                return fqn.fullname == fullname
+
+            return wrap
+
+        @disp.case(by_typename("builtins::i32"))
+        def _handle_builtins_i32(self, fqn: FQN, args: tuple):
+            return self.i32
+
+        @disp.case(by_typename("types::NoneType"))
+        def _handle_none(self, fqn: FQN, args: tuple):
+            return self.none_type
+
+        # XXX: the following are temporary
+        @disp.case(
+            by_typename(
+                "mlir_tensor_lib::make_tensor_type[mlir::type::f64]::TensorType"
+            )
+        )
+        def _handle_TensorType(self, fqn: FQN, args: tuple):
+            TODO(
+                "TODO: lower_type mlir_tensor_lib::make_tensor_type[f64]::TensorType "
+            )
+            return self.tensor_1d_f64
+
+        @disp.case(
+            by_typename(
+                "llm_tensor::make_tensor_type_2d[mlir::type::f64]::TensorType"
+            )
+        )
+        def _handle_TensorType(self, fqn: FQN, args: tuple):
+            TODO(
+                "TODO: lower_type mlir_tensor_lib::make_tensor_type[f64]::TensorType "
+            )
+            return self.tensor_2d_f64
 
     def get_ll_type(self, expr: ase.SExpr, mdmap: MDMap) -> sg.TypeInfo | None:
         mds = mdmap.lookup_typeinfo(expr)
@@ -791,127 +823,151 @@ class Lowering:
                 )
 
     def _handle_mlir_op(self, mlir_op: str, resty, args):
-        from mlir.dialects import linalg, tensor, bufferization
+        return self._dispatch_handle_mlir_op(self, mlir_op, resty, args)
 
-        match mlir_op:
-            case "tensor.add":
-                [lhs, rhs] = args
-                index = arith.constant(self.be.index_type, 0)
-                dim = tensor.dim(args[0], index)
-                out = tensor.empty([dim], element_type=self.be.f64)
-                return linalg.add(lhs, rhs, outs=[out])
-            case "linalg.add":
-                # linalg.add needs a region
-                [lhs, rhs, res] = args
-                res = linalg.add(lhs, rhs, outs=[res])
-                return res
-            case "linalg.sub":
-                # linalg.sub needs a region
-                [lhs, rhs, res] = args
-                res = linalg.sub(lhs, rhs, outs=[res])
-                return res
-            case "linalg.mul":
-                # linalg.mul needs a region
-                [lhs, rhs, res] = args
-                res = linalg.mul(lhs, rhs, outs=[res])
-                return res
-            case "linalg.div":
-                # linalg.div needs a region
-                [lhs, rhs, res] = args
-                res = linalg.div(lhs, rhs, outs=[res])
-                return res
-            case "linalg.exp":
-                # linalg.exp needs a region
-                [src, res] = args
-                res = linalg.exp(src, outs=[res])
-                return res
-            case "mlir_linalg_reduce_sum_inner_keepdims":
-                [arg] = args
-                dtype = arg.type.element_type
-                c0 = arith.constant(self.be.index_type, 0)
-                dim = tensor.dim(arg, c0)
-                init = tensor.empty(sizes=[dim], element_type=dtype)
-                neg_inf = arith.constant(self.be.f64, float(0))
-                init_filled = linalg.fill(neg_inf, outs=[init])
-                max_reduce = linalg.reduce(
-                    result=[init.type],
-                    inputs=[arg],
-                    inits=[init_filled],
-                    dimensions=[1],
+    @dispatchtable
+    @staticmethod
+    def _dispatch_handle_mlir_op(disp: DispatchTableBuilder) -> None:
+        @disp.default
+        def _unknown_mlir_op(self, mlir_op: str, resty, args):
+            raise NotImplementedError(f"Unhandled MLIR op {mlir_op!r}")
+
+        def mlir_op_matches(op_name: str):
+            def wrap(self, mlir_op: str, resty, args) -> bool:
+                return mlir_op == op_name
+
+            return wrap
+
+        @disp.case(mlir_op_matches("tensor.add"))
+        def _handle_tensor_add(self, mlir_op: str, resty, args):
+            from mlir.dialects import arith, linalg, tensor
+
+            [lhs, rhs] = args
+            index = arith.constant(self.be.index_type, 0)
+            dim = tensor.dim(args[0], index)
+            out = tensor.empty([dim], element_type=self.be.f64)
+            return linalg.add(lhs, rhs, outs=[out])
+
+        @disp.case(mlir_op_matches("linalg.add"))
+        def _handle_linalg_add(self, mlir_op: str, resty, args):
+            from mlir.dialects import linalg
+
+            # linalg.add needs a region
+            [lhs, rhs, res] = args
+            res = linalg.add(lhs, rhs, outs=[res])
+            return res
+
+        @disp.case(mlir_op_matches("linalg.sub"))
+        def _handle_linalg_sub(self, mlir_op: str, resty, args):
+            from mlir.dialects import linalg
+
+            # linalg.sub needs a region
+            [lhs, rhs, res] = args
+            res = linalg.sub(lhs, rhs, outs=[res])
+            return res
+
+        @disp.case(mlir_op_matches("linalg.mul"))
+        def _handle_linalg_mul(self, mlir_op: str, resty, args):
+            from mlir.dialects import linalg
+
+            # linalg.mul needs a region
+            [lhs, rhs, res] = args
+            res = linalg.mul(lhs, rhs, outs=[res])
+            return res
+
+        @disp.case(mlir_op_matches("linalg.div"))
+        def _handle_linalg_div(self, mlir_op: str, resty, args):
+            from mlir.dialects import linalg
+
+            # linalg.div needs a region
+            [lhs, rhs, res] = args
+            res = linalg.div(lhs, rhs, outs=[res])
+            return res
+
+        @disp.case(mlir_op_matches("linalg.exp"))
+        def _handle_linalg_exp(self, mlir_op: str, resty, args):
+            from mlir.dialects import linalg
+
+            # linalg.exp needs a region
+            [src, res] = args
+            res = linalg.exp(src, outs=[res])
+            return res
+
+        @disp.case(mlir_op_matches("mlir_linalg_reduce_sum_inner_keepdims"))
+        def _handle_reduce_sum_inner_keepdims(self, mlir_op: str, resty, args):
+            from mlir import ir
+            from mlir.dialects import arith, linalg, tensor
+
+            [arg] = args
+            dtype = arg.type.element_type
+            c0 = arith.constant(self.be.index_type, 0)
+            dim = tensor.dim(arg, c0)
+            init = tensor.empty(sizes=[dim], element_type=dtype)
+            neg_inf = arith.constant(self.be.f64, float(0))
+            init_filled = linalg.fill(neg_inf, outs=[init])
+            max_reduce = linalg.reduce(
+                result=[init.type],
+                inputs=[arg],
+                inits=[init_filled],
+                dimensions=[1],
+            )
+
+            body = max_reduce.owner.regions[0].blocks.append(dtype, dtype)
+            with ir.InsertionPoint(body):
+                linalg.YieldOp(
+                    [arith.addf(body.arguments[0], body.arguments[1])]
                 )
 
-                body = max_reduce.owner.regions[0].blocks.append(dtype, dtype)
-                with ir.InsertionPoint(body):
-                    linalg.YieldOp(
-                        [arith.addf(body.arguments[0], body.arguments[1])]
-                    )
+            assert max_reduce.owner.verify()
 
-                assert max_reduce.owner.verify()
+            c1 = arith.constant(self.be.index_type, 1)
+            dim1 = tensor.dim(arg, c1)
+            output = tensor.empty(sizes=(dim, dim1), element_type=dtype)
+            assert output.owner.verify()
 
-                c1 = arith.constant(self.be.index_type, 1)
-                dim1 = tensor.dim(arg, c1)
-                output = tensor.empty(sizes=(dim, dim1), element_type=dtype)
-                assert output.owner.verify()
+            bc = linalg.broadcast(
+                input=max_reduce, outs=[output], dimensions=[1]
+            )
+            assert bc.verify()
+            return bc
 
-                bc = linalg.broadcast(
-                    input=max_reduce, outs=[output], dimensions=[1]
+        @disp.case(mlir_op_matches("mlir_linalg_reduce_max_inner_keepdims"))
+        def _handle_reduce_max_inner_keepdims(self, mlir_op: str, resty, args):
+            from mlir import ir
+            from mlir.dialects import arith, linalg, tensor
+
+            [arg] = args
+            dtype = arg.type.element_type
+            c0 = arith.constant(self.be.index_type, 0)
+            dim = tensor.dim(arg, c0)
+            init = tensor.empty(sizes=[dim], element_type=dtype)
+            neg_inf = arith.constant(self.be.f64, float("-inf"))
+            init_filled = linalg.fill(neg_inf, outs=[init])
+            max_reduce = linalg.reduce(
+                result=[init.type],
+                inputs=[arg],
+                inits=[init_filled],
+                dimensions=[1],
+            )
+
+            body = max_reduce.owner.regions[0].blocks.append(dtype, dtype)
+            with ir.InsertionPoint(body):
+                linalg.YieldOp(
+                    [arith.maximumf(body.arguments[0], body.arguments[1])]
                 )
-                assert bc.verify()
-                return bc
-            case "mlir_linalg_reduce_max_inner_keepdims":
-                [arg] = args
-                dtype = arg.type.element_type
-                c0 = arith.constant(self.be.index_type, 0)
-                dim = tensor.dim(arg, c0)
-                init = tensor.empty(sizes=[dim], element_type=dtype)
-                neg_inf = arith.constant(self.be.f64, float("-inf"))
-                init_filled = linalg.fill(neg_inf, outs=[init])
-                max_reduce = linalg.reduce(
-                    result=[init.type],
-                    inputs=[arg],
-                    inits=[init_filled],
-                    dimensions=[1],
-                )
 
-                body = max_reduce.owner.regions[0].blocks.append(dtype, dtype)
-                with ir.InsertionPoint(body):
-                    linalg.YieldOp(
-                        [arith.maximumf(body.arguments[0], body.arguments[1])]
-                    )
+            assert max_reduce.owner.verify()
 
-                assert max_reduce.owner.verify()
+            c1 = arith.constant(self.be.index_type, 1)
+            dim1 = tensor.dim(arg, c1)
+            output = tensor.empty(sizes=(dim, dim1), element_type=dtype)
+            assert output.owner.verify()
 
-                c1 = arith.constant(self.be.index_type, 1)
-                dim1 = tensor.dim(arg, c1)
-                output = tensor.empty(sizes=(dim, dim1), element_type=dtype)
-                assert output.owner.verify()
-
-                bc = linalg.broadcast(
-                    input=max_reduce, outs=[output], dimensions=[1]
-                )
-                assert bc.verify()
-                return bc
-
-                # DYN = ir.ShapedType.get_dynamic_size()
-                # expanded = tensor.expand_shape(
-                #     result=ir.RankedTensorType.get(
-                #         element_type=dtype, shape=[DYN, 1]
-                #     ),
-                #     src=max_reduce,
-                #     reassociation=[[0, 1]],
-                #     output_shape=[dim],
-                #     static_output_shape=[DYN, 1],
-                # )
-                # assert expanded.owner.verify()
-
-                # return tensor.cast(
-                #     ir.RankedTensorType.get(
-                #         element_type=dtype, shape=(DYN, DYN)
-                #     ),
-                #     expanded,
-                # )
-            case _:
-                raise NotImplementedError(f"Unhandled MLIR op {mlir_op!r}")
+            bc = linalg.broadcast(
+                input=max_reduce, outs=[output], dimensions=[1]
+            )
+            assert bc.verify()
+            return bc
 
     def _handle_mlir_asm(self, mlir_op: str, resty, args):
         mlir_op = base64.urlsafe_b64decode(mlir_op.encode()).decode()

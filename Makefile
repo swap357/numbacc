@@ -19,4 +19,7 @@ fmt:
 	black -l79 ./nbcc
 
 
-.PHONY: deps/spy deps/sealir
+test:
+	pytest ./nbcc -v --benchmark-disable
+
+.PHONY: deps/spy deps/sealir test fmt build
