@@ -908,16 +908,14 @@ class Lowering:
                 # resty = fqn_ti.type_expr.args[0]
                 # print(fqn)
                 # print(resty.name)
-                func_args = cast(rg.Args, args)
+                func_args = args
                 names = {
-                    cast(
-                        rg.ArgSpec, argspec
-                    ).name: state.function_block.arguments[i]
+                    argspec.name: state.function_block.arguments[i]
                     for i, argspec in enumerate(func_args.arguments)
                 }
                 # Cast body to known type from rg.Func pattern match
-                func_body = cast(rg.RegionEnd, body)
-                region_begin = cast(rg.RegionBegin, func_body.begin)
+                func_body = body
+                region_begin = func_body.begin
                 argvalues = []
                 for k in region_begin.inports:
                     if k == internal_prefix("io"):
