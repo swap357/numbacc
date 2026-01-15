@@ -47,3 +47,9 @@ jobs:
         run: |          
           conda activate ./envs/dev
           pytest ./nbcc
+
+
+      - name: MyPy
+        run: |          
+          conda activate ./envs/dev
+          mypy ./nbcc
