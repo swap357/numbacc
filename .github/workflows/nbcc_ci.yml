@@ -5,6 +5,12 @@ on:
     paths:
       - .github/workflows/nbcc_ci.yml
       - nbcc/**
+  push:
+    branches:
+      - main
+    paths:
+      - .github/workflows/nbcc_ci.yml
+      - nbcc/**
   workflow_dispatch:
 
 # Add concurrency control
