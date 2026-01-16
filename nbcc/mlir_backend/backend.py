@@ -28,7 +28,7 @@ from spy.fqn import FQN
 
 from nbcc.developer import TODO
 
-from ..frontend import grammar as sg
+from ..frontend import grammar as sg, TranslationUnit
 from .mlir_passes import PassManager
 
 # ## MLIR Backend Implementation
@@ -148,8 +148,11 @@ class BackendInterface(ABC):
 
 
 class Backend(BackendInterface):
+    _tu: TranslationUnit
+    _context: ir.Context
 
-    def __init__(self):
+    def __init__(self, tu: TranslationUnit):
+        self._tu = tu
         self._context = context = ir.Context()
         context.enable_multithreading(False)
         # context.allow_unregistered_dialects = True
@@ -164,21 +167,6 @@ class Backend(BackendInterface):
             self._io_type = ir.IntegerType.get_signless(1, context=context)
             self._llvm_ptr = ir.Type.parse("!llvm.ptr")
             self._none_type = ir.Type.parse("!llvm.struct<()>")
-
-            self.unranked_tensor_f64 = ir.UnrankedTensorType.get(self._f64)
-            self.unranked_memref_f64 = ir.UnrankedMemRefType.get(
-                self._f64, memory_space=None
-            )
-            unknown_dim = ir.ShapedType.get_dynamic_size()
-            self.tensor_1d_f64 = ir.RankedTensorType.get(
-                shape=[unknown_dim], element_type=self._f64
-            )
-            self.tensor_2d_f64 = ir.RankedTensorType.get(
-                shape=[unknown_dim, unknown_dim], element_type=self._f64
-            )
-            self.memref_1d_f64 = ir.MemRefType.get(
-                shape=[unknown_dim], element_type=self._f64
-            )
 
     # Property accessors for BackendInterface compliance
     # Note: These properties expose existing instance attributes created in __init__
@@ -238,6 +226,9 @@ class Backend(BackendInterface):
 
             return wrap
 
+        def is_struct_type(self, fqn: FQN, args: tuple) -> bool:
+            return self._tu.is_struct(fqn)
+
         @disp.case(type_name_matches("mlir::type::()"))
         def _handle_void(self, fqn: FQN, args: tuple):
             return None
@@ -262,28 +253,17 @@ class Backend(BackendInterface):
         def _handle_none(self, fqn: FQN, args: tuple):
             return self.none_type
 
-        # XXX: the following are temporary
-        @disp.case(
-            by_typename(
-                "mlir_tensor_lib::make_tensor_type[mlir::type::f64]::TensorType"
-            )
-        )
-        def _handle_TensorType_mlir_lib(self, fqn: FQN, args: tuple):
-            TODO(
-                "TODO: lower_type mlir_tensor_lib::make_tensor_type[f64]::TensorType "
-            )
-            return self.tensor_1d_f64
-
-        @disp.case(
-            by_typename(
-                "llm_tensor::make_tensor_type_2d[mlir::type::f64]::TensorType"
-            )
-        )
-        def _handle_TensorType_llm(self, fqn: FQN, args: tuple):
-            TODO(
-                "TODO: lower_type mlir_tensor_lib::make_tensor_type[f64]::TensorType "
-            )
-            return self.tensor_2d_f64
+        @disp.case(is_struct_type)
+        def _handle_struct(self: Backend, fqn: FQN, args: tuple):
+            struct = self._tu.get_struct(fqn)
+            fields = list(struct.iterfields_w())
+            is_lifted_type = len(fields) == 1 and fields[0].name == "__ll__"
+            if is_lifted_type:
+                [ll_field] = fields
+                return self._dispatch_lower_type(self, fqn=ll_field.w_T.fqn, args=())
+            else:
+                TODO("regular non lifted struct type should go here")
+                raise NotImplementedError("TODO")
 
     def handle_builtin_op(
         self, op_name: str, args, state: "LowerStates", lowering_instance=None

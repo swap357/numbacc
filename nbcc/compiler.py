@@ -45,7 +45,7 @@ def compile_to_mlir(path: str) -> ir.Module:
     func_map: dict[str, rg.Func]
     func_map, mdlist = middle_end(tu)
     pprint(func_map)
-    be = Backend()
+    be = Backend(tu)
     mdmap = MDMap()
     mdmap.load(mdlist)
 
