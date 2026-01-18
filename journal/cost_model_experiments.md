@@ -196,3 +196,71 @@ SPy `/` returns `f64`, use `//` for integer division:
 q = a // b  # i32 result
 r = a / b   # f64 result
 ```
+
+## Phase 3: Algebraic Rewrite Rules
+
+### Problem: Cost Models Had No Effect
+
+Initial validation revealed that all cost models produced **identical extraction results**:
+- All 4 programs extracted the same number of nodes
+- Only 12 of 65 e-classes had multiple alternatives
+- All alternatives were trivial (Py_Call vs Op_*) where every model agreed
+
+**Root cause**: Without algebraic rewrites, the e-graph only contained the original program structure plus lowered operations.
+
+### Solution: Add Meaningful Rewrite Rules
+
+Added 6 new rulesets to `nbcc/egraph/rules.py`:
+
+| Ruleset | Examples | Purpose |
+|---------|----------|---------|
+| `ruleset_commutativity` | `a + b ↔ b + a` | Create symmetric alternatives |
+| `ruleset_associativity` | `(a+b)+c ↔ a+(b+c)` | Enable constant folding |
+| `ruleset_identity` | `a + 0 → a`, `a * 1 → a` | Remove redundant operations |
+| `ruleset_strength_reduction` | `a * 2 ↔ a + a ↔ a << 1` | Replace expensive with cheap |
+| `ruleset_distributivity` | `a*(b+c) ↔ a*b + a*c` | Factor/expand expressions |
+| `ruleset_comparison_flip` | `a < b ↔ b > a` | Normalize comparisons |
+
+### New Operations Added
+
+Extended the IR with:
+- `Op_i32_mul`, `Op_i32_div`, `Op_i32_mod`
+- `Op_i32_le`, `Op_i32_ge`, `Op_i32_eq`, `Op_i32_ne`
+- `Op_i32_shl`, `Op_i32_shr` (for strength reduction)
+- `Op_i32_neg`
+
+### Validation: Cost Models Now Matter
+
+With divergent cost models (artificially designed to disagree):
+
+| Model | Arithmetic Nodes | Strategy |
+|-------|-----------------|----------|
+| prefer_shift | 53 | shift < add < mul |
+| prefer_mul | 54 | mul < add < shift |
+| prefer_add | 56 | add < shift < mul |
+
+**Key insight**: Standard models (baseline, instruction, analytical) still produce same results because they all agree on relative ordering (shift < add < mul).
+
+### Rule Firing Statistics (arithmetic.spy)
+
+```
+Op_i32_add commutativity: 95 matches
+Op_i32_mul commutativity: 28 matches
+Associativity (add): 147 matches
+Associativity (mul): 48 matches
+Distributivity: 37 matches
+Strength reduction (mul→shl): 3 matches
+```
+
+### Implementation Details
+
+1. **Literal representation**: SPy uses `Term.LiteralI64` from sealir, not a custom literal type. Rules must match against this.
+
+2. **Schedule structure**:
+   ```python
+   lowering.saturate() + algebraic.saturate()
+   ```
+   - Phase 1: Lower Py_Call → Op_* (runs to saturation)
+   - Phase 2: Apply algebraic rewrites (runs to saturation)
+
+3. **E-graph blowup**: Algebraic rules can cause exponential growth. Current approach uses saturation but may need iteration limits for complex programs.
