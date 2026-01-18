@@ -113,6 +113,57 @@ model = MLCostModel()
 3. **Measure actual runtime**: Compile to WASM and measure execution time
 4. **Compute correlations**: Compare predicted vs actual costs
 
+## Phase 2: Principled Cost Models
+
+### New Modules Added
+
+| Module | Purpose |
+|--------|---------|
+| `principled_costs.py` | CPU instruction-based costs (Agner Fog tables) |
+| `synthetic_data.py` | Synthetic program generation for training |
+| `ml_training.py` | ML training pipeline with proper validation |
+
+### Principled Cost Hierarchy
+
+Based on real CPU microarchitecture (Skylake-era x86-64):
+
+| Operation Type | Cycles | Rationale |
+|---------------|--------|-----------|
+| Add/Sub/Compare | 0.5 | Single cycle, 4-wide dispatch |
+| Multiply | 1.0 | 3-4 cycle latency, 1 throughput |
+| Division | 25.0 | 20-100 cycles (data dependent) |
+| Branch (predicted) | 0.5 | Well-predicted |
+| Branch (mispredicted) | 15.0 | Pipeline flush |
+| Direct call | 3.0 | Stack + jump |
+| Python dispatch | 100.0 | Dynamic lookup |
+| IO/syscall | 500.0 | Kernel transition |
+
+### ML Model Training
+
+Enhanced features for ML prediction:
+- `op_category`: Operation type (0-6)
+- `is_division`: Critical for cost (25x vs 0.5x)
+- `is_multiplication`: Moderate cost (1x)
+- `is_python_generic`: High cost indicator
+- `is_call`: Function call overhead
+
+Training results on analytical cost data:
+- **R²: 0.9997** - Nearly perfect fit
+- **Spearman: 0.77** - Good ranking preservation
+- **MAE: 1.25 cycles** - Low prediction error
+
+### Benchmark Results
+
+| Program | Analytical | Instruction | Baseline |
+|---------|-----------|-------------|----------|
+| arithmetic | 10.88 | 26,588 | 26,670 |
+| branches | 10.75 | 3.83M | 3.84M |
+| loops | 16.12 | 3.50B | 3.51B |
+| mixed | 18.75 | 8.61B | 8.62B |
+
+Key insight: Instruction and Baseline models give similar relative costs
+but different scales. Analytical model normalizes for ILP parallelism.
+
 ## Technical Notes
 
 ### SPy Control Flow Limitations

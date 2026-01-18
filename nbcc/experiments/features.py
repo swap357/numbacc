@@ -122,6 +122,12 @@ class NodeFeatures:
         type_weight: Weight associated with the result type
         is_python_generic: Whether this is a generic Python operation
         is_lowered: Whether this is a lowered/specialized operation
+        is_division: Whether this is a division/modulo operation
+        is_multiplication: Whether this is a multiplication operation
+        is_comparison: Whether this is a comparison operation
+        is_branch: Whether this is a branch/conditional operation
+        is_loop: Whether this is a loop operation
+        is_call: Whether this is a function call
     """
     op_category: int
     num_children: int
@@ -130,6 +136,12 @@ class NodeFeatures:
     type_weight: float = 1.0
     is_python_generic: bool = False
     is_lowered: bool = False
+    is_division: bool = False
+    is_multiplication: bool = False
+    is_comparison: bool = False
+    is_branch: bool = False
+    is_loop: bool = False
+    is_call: bool = False
 
     def to_vector(self) -> list[float]:
         """Convert features to a numeric vector for ML models."""
@@ -141,6 +153,12 @@ class NodeFeatures:
             self.type_weight,
             float(self.is_python_generic),
             float(self.is_lowered),
+            float(self.is_division),
+            float(self.is_multiplication),
+            float(self.is_comparison),
+            float(self.is_branch),
+            float(self.is_loop),
+            float(self.is_call),
         ]
 
     @classmethod
@@ -154,6 +172,12 @@ class NodeFeatures:
             "type_weight",
             "is_python_generic",
             "is_lowered",
+            "is_division",
+            "is_multiplication",
+            "is_comparison",
+            "is_branch",
+            "is_loop",
+            "is_call",
         ]
 
 
@@ -187,6 +211,14 @@ def extract_features(
     is_python_generic = op.startswith("Py_")
     is_lowered = op.startswith("Op_") or op.startswith("Builtin_")
 
+    # Specific operation type flags (important for cost differentiation)
+    is_division = "div" in op.lower() or "mod" in op.lower()
+    is_multiplication = "mul" in op.lower()
+    is_comparison = op_category == OpCategory.COMPARISON
+    is_branch = op == "Gamma"
+    is_loop = op == "Theta"
+    is_call = op in ("Py_Call", "CallFQN", "Py_LoadGlobal")
+
     return NodeFeatures(
         op_category=int(op_category),
         num_children=num_children,
@@ -195,6 +227,12 @@ def extract_features(
         type_weight=type_weight,
         is_python_generic=is_python_generic,
         is_lowered=is_lowered,
+        is_division=is_division,
+        is_multiplication=is_multiplication,
+        is_comparison=is_comparison,
+        is_branch=is_branch,
+        is_loop=is_loop,
+        is_call=is_call,
     )
 
 
