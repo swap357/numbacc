@@ -25,13 +25,17 @@ def egraph_optimize(egraph: egglog.EGraph):
     egraph.run(rule_schedule)
 
 
-def make_schedule() -> egglog.Schedule:
+def make_schedule(enable_constant_folding: bool = False) -> egglog.Schedule:
     """
     Build the optimization schedule for e-graph rewriting.
 
-    The schedule runs in two phases:
+    The schedule runs in three phases:
     1. Lowering: Transform Python ops to typed ops (Py_Call → Op_i32_*)
     2. Algebraic: Apply algebraic rewrites to create alternatives
+    3. Constant Folding: Evaluate operations on constant values
+
+    Args:
+        enable_constant_folding: If True, include constant folding rules
     """
     # Phase 1: Lower Python operations to typed operations
     lowering = (
@@ -52,10 +56,29 @@ def make_schedule() -> egglog.Schedule:
         | ruleset_comparison_flip
     )
 
-    # Run lowering to saturation, then algebraic to saturation
-    # Note: algebraic rules may cause e-graph blowup on complex programs
-    # Use + for sequencing (not * which is for repetition)
-    return lowering.saturate() + algebraic.saturate()
+    # Base schedule: lowering then algebraic
+    schedule = lowering.saturate() + algebraic.saturate()
+
+    # Phase 3: Constant folding (optional)
+    # This evaluates operations on literal values at compile time
+    if enable_constant_folding:
+        from nbcc.experiments.constant_folding import (
+            ruleset_constant_fold,
+            ruleset_constant_fold_division,
+            ruleset_constant_fold_unary,
+        )
+
+        constant_folding = (
+            ruleset_constant_fold
+            | ruleset_constant_fold_unary
+            | ruleset_constant_fold_division
+        )
+
+        # Run constant folding after algebraic rewrites have created
+        # opportunities (e.g., associativity exposing constant subexpressions)
+        schedule = schedule + constant_folding.saturate()
+
+    return schedule
 
 
 def egraph_convert_metadata(mdlist: list[SExpr], memo) -> egglog.Vec[Metadata]:

@@ -1,0 +1,72 @@
+# Distributivity Test Program
+#
+# This program tests distributivity optimization:
+#   a * (b + c) ↔ (a * b) + (a * c)
+#
+# The cost model must choose:
+#   - Factored form: 1 mul + 1 add (typically cheaper)
+#   - Expanded form: 2 mul + 1 add
+#
+# This is a key test because it's one of the few rules where
+# cost models can make meaningfully different choices.
+
+def factored(a: i32, b: i32, c: i32) -> i32:
+    # Factored form: 1 mul, 1 add
+    # E-graph will also contain: (a*b) + (a*c)
+    return a * (b + c)
+
+
+def expanded(a: i32, b: i32, c: i32) -> i32:
+    # Expanded form: 2 mul, 1 add
+    # E-graph will also contain: a * (b + c)
+    return a*b + a*c
+
+
+def nested_factored(a: i32, b: i32, c: i32, d: i32) -> i32:
+    # a * (b + c + d) = a * ((b + c) + d)
+    # ↔ (a * b) + (a * c) + (a * d)
+    # Factored: 1 mul, 2 add
+    # Expanded: 3 mul, 2 add
+    return a * (b + c + d)
+
+
+def double_factored(a: i32, b: i32, c: i32, d: i32) -> i32:
+    # a * (b + c) + a * (c + d)
+    # Could factor out 'a': a * ((b + c) + (c + d)) = a * (b + 2c + d)
+    # Or expand: ab + ac + ac + ad = ab + 2ac + ad
+    return a * (b + c) + a * (c + d)
+
+
+def mixed_distribute(x: i32, y: i32, z: i32) -> i32:
+    # Combination that tests both directions
+    # (x + y) * z + x * y
+    # The first term can expand to: x*z + y*z
+    return (x + y) * z + x * y
+
+
+def with_constants(x: i32, y: i32) -> i32:
+    # 2 * (x + y) can become 2*x + 2*y
+    # OR (x + y) << 1 (strength reduction + distributivity interaction)
+    return 2 * (x + y)
+
+
+def strength_and_distribute(x: i32, y: i32) -> i32:
+    # 4 * (x + y)
+    # Options:
+    #   - (x + y) << 2  (strength reduction on factored form)
+    #   - 4*x + 4*y     (expanded)
+    #   - (x<<2) + (y<<2) (expanded + strength reduction on each)
+    return 4 * (x + y)
+
+
+def chain_distribute(a: i32, b: i32, c: i32) -> i32:
+    # (a + b) * (b + c)
+    # = ab + ac + bb + bc
+    # = ab + ac + b*b + bc
+    # Multiple expansion options
+    return (a + b) * (b + c)
+
+
+def distribute_subtract(a: i32, b: i32, c: i32) -> i32:
+    # a * (b - c) ↔ (a * b) - (a * c)
+    return a * (b - c)

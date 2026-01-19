@@ -33,6 +33,16 @@ Usage:
     # Train ML model on synthetic data
     from nbcc.experiments import create_pretrained_model
     predictor = create_pretrained_model()
+
+    # Analyze extraction differences
+    from nbcc.experiments import analyze_extraction, compare_models
+    analysis = analyze_extraction(egraph, cost_model)
+    print_extraction_report(analysis)
+
+    # Validate cost model accuracy
+    from nbcc.experiments import validate_cost_model, print_validation_report
+    result = validate_cost_model(predictions, actuals, "my_model")
+    print_validation_report({"my_model": result})
 """
 
 from .benchmark import (
@@ -86,6 +96,54 @@ from .ml_training import (
     generate_training_data_from_operations,
     train_cost_model,
 )
+from .extraction_analysis import (
+    EClassAlternatives,
+    EClassDisagreement,
+    ExtractionAnalysis,
+    ModelComparison,
+    analyze_extraction,
+    compare_models,
+    find_disagreements,
+    get_extraction_summary,
+    print_comparison_report,
+    print_extraction_report,
+)
+from .constant_folding import (
+    create_constant_folding_schedule,
+    get_constant_folding_rulesets,
+    make_constant_folding_schedule,
+    ruleset_constant_fold,
+    ruleset_constant_fold_division,
+    ruleset_constant_fold_unary,
+)
+from .runtime_measurement import (
+    CompilationResult,
+    FullComparison,
+    RuntimeMeasurement,
+    compile_to_egraph,
+    extract_with_model,
+    get_benchmark_programs,
+    print_comparison_report as print_runtime_comparison_report,
+    run_benchmark_suite,
+    run_compilation,
+    run_full_comparison,
+    simulate_runtime_comparison,
+)
+from .validation_metrics import (
+    DetailedValidation,
+    PairwiseComparison,
+    ValidationResult,
+    compare_cost_model_quality,
+    compute_accuracy,
+    compute_kendall_tau,
+    compute_mae,
+    compute_rmse,
+    compute_spearman,
+    print_detailed_validation_report,
+    print_validation_report,
+    validate_cost_model,
+    validate_cost_model_detailed,
+)
 
 __all__ = [
     # Cost Models (original)
@@ -133,4 +191,48 @@ __all__ = [
     "evaluate_model",
     "create_pretrained_model",
     "generate_training_data_from_operations",
+    # Extraction Analysis (Phase 1)
+    "EClassAlternatives",
+    "EClassDisagreement",
+    "ExtractionAnalysis",
+    "ModelComparison",
+    "analyze_extraction",
+    "compare_models",
+    "find_disagreements",
+    "get_extraction_summary",
+    "print_extraction_report",
+    "print_comparison_report",
+    # Constant Folding (Phase 2)
+    "ruleset_constant_fold",
+    "ruleset_constant_fold_unary",
+    "ruleset_constant_fold_division",
+    "get_constant_folding_rulesets",
+    "create_constant_folding_schedule",
+    "make_constant_folding_schedule",
+    # Runtime Measurement (Phase 4)
+    "CompilationResult",
+    "RuntimeMeasurement",
+    "FullComparison",
+    "compile_to_egraph",
+    "extract_with_model",
+    "run_compilation",
+    "run_full_comparison",
+    "simulate_runtime_comparison",
+    "run_benchmark_suite",
+    "get_benchmark_programs",
+    "print_runtime_comparison_report",
+    # Validation Metrics (Phase 5)
+    "ValidationResult",
+    "PairwiseComparison",
+    "DetailedValidation",
+    "compute_spearman",
+    "compute_kendall_tau",
+    "compute_accuracy",
+    "compute_mae",
+    "compute_rmse",
+    "validate_cost_model",
+    "validate_cost_model_detailed",
+    "print_validation_report",
+    "print_detailed_validation_report",
+    "compare_cost_model_quality",
 ]
