@@ -1,0 +1,67 @@
+"""
+Branches test program - Control flow heavy.
+
+Used for benchmarking cost models on conditional operations.
+"""
+
+def abs_val(x: i32) -> i32:
+    """Return absolute value."""
+    result = x
+    if x < 0:
+        result = 0 - x
+    return result
+
+
+def max_val(a: i32, b: i32) -> i32:
+    """Return maximum of two values."""
+    result = b
+    if a > b:
+        result = a
+    return result
+
+
+def min_val(a: i32, b: i32) -> i32:
+    """Return minimum of two values."""
+    result = a
+    if a > b:
+        result = b
+    return result
+
+
+def clamp(x: i32, lo: i32, hi: i32) -> i32:
+    """Clamp x to range [lo, hi]."""
+    result = x
+    if x < lo:
+        result = lo
+    if x > hi:
+        result = hi
+    return result
+
+
+def sign(x: i32) -> i32:
+    """Return sign of x (-1, 0, or 1)."""
+    result = 0
+    if x > 0:
+        result = 1
+    if x < 0:
+        result = 0 - 1
+    return result
+
+
+def main() -> i32:
+    x = abs_val(0 - 5)
+    print(x)
+
+    m = max_val(10, 20)
+    print(m)
+
+    n = min_val(10, 20)
+    print(n)
+
+    c = clamp(25, 0, 100)
+    print(c)
+
+    s = sign(0 - 42)
+    print(s)
+
+    return 0
