@@ -12,7 +12,9 @@ mlir_kernel_path = "./out.mlir"
 assert os.path.exists(mlir_kernel_path)
 
 tilebc_file = "example.tilebc"
-kernel_name = "spy_tile_example$exported$export_foo"
+# kernel_name = "spy_tile_example$exported$export_foo"
+kernel_name = "spy_tile_example$exported$export_vecadd"
+
 # Compile everything
 # cubin_path = "./example.cubin"
 CUDA_TILE_TRANSLATE_PATH = "../third-party/cuda-tile/build/bin/cuda-tile-translate"
@@ -40,3 +42,4 @@ x_tensor = torch.arange(128, dtype=torch.float64, device="cuda")
 print(x_tensor)
 # Launch directly
 ct.launch(torch.cuda.current_stream(), (1,), kernel, (x_tensor,))
+print(x_tensor)

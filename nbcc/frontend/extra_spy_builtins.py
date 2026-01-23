@@ -127,7 +127,11 @@ def w_MLIR_unpack(
     def w_opimpl(vm: "SPyVM", fn: W_Object) -> W_Object:
         raise NotImplementedError("MLIR ops are not supposed to be called")
 
-    fqn = FQN(["mlir", "unpack"]).with_suffix(str(idx))
+    fqn = (
+        FQN(["mlir", "unpack"])
+        .with_suffix(str(idx))
+        .with_qualifiers([restype.fqn.fullname])
+    )
     w_op = W_BuiltinFunc(w_functype, fqn, w_opimpl)
     irtag = IRTag(
         "mlir.asm", idx=idx
