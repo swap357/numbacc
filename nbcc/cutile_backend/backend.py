@@ -1,8 +1,7 @@
 from __future__ import annotations
-from abc import abstractmethod
 
-from typing import Any, Callable, Coroutine, Sequence, cast
-from nbcc.mlir_backend.backend import BackendInterface
+from typing import Any
+from nbcc.mlir_lowering import BackendInterface, UnsupportedError
 from nbcc.mlir_utils import decode_type_name, parse_composite_type
 from nbcc.frontend import TranslationUnit
 from spy.fqn import FQN
@@ -210,7 +209,7 @@ class CuTileBackend(BackendInterface):
 
     @property
     def llvm_ptr(self) -> ir.Type:
-        return self._llvm_ptr
+        raise UnsupportedError
 
     # Core Methods
     def lower_type(self, ty) -> tuple[ir.Type, ...]:

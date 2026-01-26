@@ -24,8 +24,8 @@ from nbcc.egraph.conversion import ExtendEGraphToRVSDG
 from nbcc.egraph.rules import egraph_convert_metadata, egraph_optimize
 from nbcc.frontend import TranslationUnit, frontend
 from nbcc.frontend.grammar import IRTag, TypeInfo
-from nbcc.mlir_backend.backend import (
-    Backend,
+from nbcc.mlir_backend.backend import Backend
+from nbcc.mlir_lowering import (
     Lowering,
     MDMap,
     BackendInterface,
