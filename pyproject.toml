@@ -32,7 +32,7 @@ mypy_path = ["deps/sealir", "deps/spy"]
 python_version = "3.12"
 
 [[tool.mypy.overrides]]
-module = ["mlir.*", "sealir.*", "spy.*"]
+module = ["mlir.*", "sealir.*", "spy.*", "cuda_tile.*"]
 ignore_errors = true
 ignore_missing_imports = true
 

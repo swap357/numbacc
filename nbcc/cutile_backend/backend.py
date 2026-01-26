@@ -32,7 +32,7 @@ def entry(
     occupancy=None,
     loc=None,
     ip=None,
-) -> Tile:
+) -> Any:
     """
     from https://github.com/NVIDIA/cuda-tile/blob/8a775693b18303d6c696be6ffd06dadad1b32a8e/python/cuda_tile/dialects/cuda_tile_ops.py#L2C37-L2C44
     """

@@ -4,7 +4,13 @@ from abc import ABC, abstractmethod
 from collections import defaultdict
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Any, Callable, Sequence, cast
+from typing import Any, Callable, Sequence, cast, Coroutine, TYPE_CHECKING
+
+# Type aliases for MLIR types - backends will use their specific ir modules
+IRContext = Any
+IRType = Any
+IRLocation = Any
+IRInsertionPoint = Any
 
 
 from sealir import ase
@@ -70,8 +76,8 @@ class BackendInterface(ABC):
     """
 
     # Class attributes for MLIR context management
-    Location: type  # Set to ir.Location by implementations
-    InsertionPoint: type  # Set to ir.InsertionPoint by implementations
+    Location: Any  # Set to ir.Location by implementations
+    InsertionPoint: Any  # Set to ir.InsertionPoint by implementations
 
     @classmethod
     @abstractmethod
@@ -87,47 +93,47 @@ class BackendInterface(ABC):
     # Type Constants - Properties for clean access pattern
     @property
     @abstractmethod
-    def context(self) -> ir.Context:
+    def context(self) -> "IRContext":
         """MLIR context for creating types and operations."""
 
     @property
     @abstractmethod
-    def i32(self) -> ir.Type:
+    def i32(self) -> "IRType":
         """32-bit integer type."""
 
     @property
     @abstractmethod
-    def i64(self) -> ir.Type:
+    def i64(self) -> "IRType":
         """64-bit integer type."""
 
     @property
     @abstractmethod
-    def f64(self) -> ir.Type:
+    def f64(self) -> "IRType":
         """64-bit float type."""
 
     @property
     @abstractmethod
-    def boolean(self) -> ir.Type:
+    def boolean(self) -> "IRType":
         """Boolean (1-bit integer) type."""
 
     @property
     @abstractmethod
-    def none_type(self) -> ir.Type:
+    def none_type(self) -> "IRType":
         """None/void type representation."""
 
     @property
     @abstractmethod
-    def io_type(self) -> ir.Type:
+    def io_type(self) -> "IRType":
         """IO token type for sequencing."""
 
     @property
     @abstractmethod
-    def llvm_ptr(self) -> ir.Type:
+    def llvm_ptr(self) -> "IRType":
         """LLVM pointer type for memory operations."""
 
     # Core Methods
     @abstractmethod
-    def lower_type(self, ty) -> tuple[ir.Type, ...]:
+    def lower_type(self, ty) -> tuple["IRType", ...]:
         """Convert SealIR types to backend IR types.
 
         Returns a tuple of MLIR types. For single types, returns (type,).
@@ -136,7 +142,7 @@ class BackendInterface(ABC):
         """
 
     @abstractmethod
-    def get_ll_type(self, expr, mdmap) -> ir.Type | None:
+    def get_ll_type(self, expr, mdmap) -> "IRType | None":
         """Get backend type for expression with metadata."""
 
     @abstractmethod
@@ -280,7 +286,7 @@ class Lowering:
         """
         context = self.be.context
         self.loc = loc = self.be.Location.name(
-            f"{self}.lower()", context=context
+            f"{self.__class__.__name__}.lower()", context=context
         )
         module = self.module
 

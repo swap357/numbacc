@@ -1,4 +1,4 @@
-from typing import TYPE_CHECKING, Annotated, cast
+from typing import TYPE_CHECKING, Annotated, cast, Any
 
 from spy.fqn import FQN
 from ..mlir_utils import (
@@ -38,7 +38,7 @@ class W_MLIR_Value(W_Object):
     __spy_storage_category__ = "reference"
 
 
-_type_caches = {}
+_type_caches: dict[str, "W_MLIR_Type"] = {}
 
 
 @MLIR.builtin_type("MLIR_Type")
@@ -102,10 +102,10 @@ def w_MLIR_op(
 
 @MLIR.builtin_func("MLIR_unpack")
 def w_MLIR_unpack(
-    vm: "SPyVM", w_fn: W_Object, w_idx: W_Object
+    vm: "SPyVM", w_fn: W_Func, w_idx: W_Object
 ) -> W_BuiltinFunc:
 
-    restype = w_fn.w_functype.w_restype
+    restype = cast(W_MLIR_Type, w_fn.w_functype.w_restype)
 
     assert restype.original_name.startswith("multivalues$")
     members = parse_composite_type(restype.original_name)
@@ -114,6 +114,8 @@ def w_MLIR_unpack(
         fqn = FQN(str_fqn)
         [enc] = fqn.parts[-1].qualifiers
         return decode_type_name(str(enc))
+
+    assert members is not None
 
     types = list(
         map(lambda x: W_MLIR_Type.w_new(vm, vm.wrap(decode_type(x))), members)
@@ -145,6 +147,7 @@ def w_MLIR_asm(
     vm: "SPyVM", w_asm: W_Str, w_restype: W_Object, w_argtypes: W_Tuple
 ) -> W_BuiltinFunc:
 
+    RESTYPE: Any
     if isinstance(w_restype, W_Tuple):
         innernames = []
         for it_type in w_restype.items_w:
