@@ -17,6 +17,7 @@ dependencies = [
 
 [project.scripts]
 nbcc = "nbcc.cli:main"
+numbacc = "nbcc.cli:main"  # alias
 
 [tool.setuptools.packages.find]
 include = ["nbcc", "nbcc.*"]
