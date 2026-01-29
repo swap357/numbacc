@@ -6,7 +6,7 @@ import tempfile
 from contextlib import ExitStack
 from pathlib import Path
 from pprint import pprint
-from typing import cast, Sequence
+from typing import cast, Sequence, Type
 
 import sealir.rvsdg.grammar as rg
 import spy
@@ -24,7 +24,12 @@ from nbcc.egraph.conversion import ExtendEGraphToRVSDG
 from nbcc.egraph.rules import egraph_convert_metadata, egraph_optimize
 from nbcc.frontend import TranslationUnit, frontend
 from nbcc.frontend.grammar import IRTag, TypeInfo
-from nbcc.mlir_backend.backend import Backend, Lowering, MDMap
+from nbcc.mlir_backend.backend import Backend
+from nbcc.mlir_lowering import (
+    Lowering,
+    MDMap,
+    BackendInterface,
+)
 
 logging.disable(logging.INFO)
 
@@ -39,13 +44,15 @@ def compile_shared_lib(path: str, out_path: str) -> None:
     make_shared(module, out_path)
 
 
-def compile_to_mlir(path: str) -> ir.Module:
+def compile_to_mlir(
+    path: str, be_type: Type[BackendInterface] = Backend
+) -> ir.Module:
     tu = frontend(path)
 
     func_map: dict[str, rg.Func]
     func_map, mdlist = middle_end(tu)
     pprint(func_map)
-    be = Backend()
+    be = be_type.create(tu)
     mdmap = MDMap()
     mdmap.load(mdlist)
 
@@ -64,9 +71,6 @@ def compile_to_mlir(path: str) -> ir.Module:
             transform_map[fn_op.name.value] = [v for k, v in mlir_transforms]
 
     lowering.module.operation.verify()
-
-    print("-------------")
-    lowering.module.dump()
 
     print("=============")
     print(lowering.module.operation.get_asm())
@@ -292,32 +296,31 @@ def expand_struct_type(tu: TranslationUnit, egraph):
 
         is_lifted_type = "__ll__" in w_obj_struct.dict_w
         for fqn, w_obj in tu._builtins.items():
-            if fqn_struct.fullname.startswith(fqn_struct.fullname):
-                print("BUITIN", fqn)
-                subname = fqn.parts[-1].name
-                if subname == "__make__":
-                    if is_lifted_type:
-                        print("Add __lift__")
-                        schedule |= create_ruleset_struct__lift__(w_obj)
+            print("BUITIN", fqn)
+            subname = fqn.parts[-1].name
+            if subname == "__make__":
+                if is_lifted_type:
+                    print("Add __lift__")
+                    schedule |= create_ruleset_struct__lift__(w_obj)
 
-                    else:
-                        print("Add __make__")
-                        schedule |= create_ruleset_struct__make__(w_obj)
+                else:
+                    print("Add __make__")
+                    schedule |= create_ruleset_struct__make__(w_obj)
 
-                elif subname.startswith("__get_"):
+            elif subname.startswith("__get_"):
 
-                    if is_lifted_type:
-                        assert subname == "__get___ll____"
-                        schedule |= create_ruleset_struct__unlift__(w_obj)
-                    else:
-                        print("Add field getter")
-                        for i, w_field in enumerate(
-                            w_obj_struct.iterfields_w()
-                        ):
-                            if subname == f"__get_{w_field.name}__":
-                                schedule |= create_ruleset_struct__get_field__(
-                                    w_obj, i
-                                )
+                if is_lifted_type:
+                    assert subname == "__get___ll____"
+                    schedule |= create_ruleset_struct__unlift__(w_obj)
+                else:
+                    print("Add field getter")
+                    for i, w_field in enumerate(
+                        w_obj_struct.iterfields_w()
+                    ):
+                        if subname == f"__get_{w_field.name}__":
+                            schedule |= create_ruleset_struct__get_field__(
+                                w_obj, i
+                            )
 
     egraph.run(schedule.saturate())
 
