@@ -14,3 +14,6 @@ __pycache__/
 
 # conda-project
 envs/
+
+# cloned dependencies (fetched via make setup-workspace)
+deps/
