@@ -1,0 +1,20 @@
+def main() -> i32:
+    x = 15
+    y = 10
+    z = 5
+    if x > y:
+        if y > z:
+            print("x > y > z")
+            r = x - y - z
+        else:
+            print("x > y but y <= z")
+            r = x - z
+    else:
+        if y > z:
+            print("x <= y and y > z")
+            r = y - z
+        else:
+            print("x <= y and y <= z")
+            r = z
+    print(r)
+    return 0

@@ -1,0 +1,7 @@
+def main() -> i32:
+    print("hello")
+    print("world")
+    a = 42
+    print(a)
+    print("done")
+    return 0

@@ -1,0 +1,14 @@
+@struct
+class Vec2:
+    x: i32
+    y: i32
+
+
+def main() -> int:
+    a = Vec2(3, 4)
+    b = Vec2(1, 2)
+    cx = a.x + b.x
+    cy = a.y + b.y
+    print(cx)
+    print(cy)
+    return 0

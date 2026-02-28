@@ -1,0 +1,15 @@
+def main() -> i32:
+    i = 0
+    evens = 0
+    odds = 0
+    while i < 6:
+        if i > 2:
+            evens = evens + 1
+        else:
+            odds = odds + 1
+        i = i + 1
+    print("evens")
+    print(evens)
+    print("odds")
+    print(odds)
+    return 0
