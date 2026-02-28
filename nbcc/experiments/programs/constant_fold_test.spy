@@ -1,0 +1,66 @@
+# Constant Folding Test Program
+#
+# This program tests constant folding optimization:
+#   - Expressions with only constants should fold to a single value
+#   - Mixed expressions should partially fold
+#
+# The e-graph should show:
+#   1 + 2 → 3
+#   1 + 2 + 3 + 4 → 10
+#   x + (1 + 2) → x + 3
+
+def add_constants(x: i32) -> i32:
+    # (1 + 2 + 3 + 4) should fold to 10
+    # Result: x + 10
+    return x + (1 + 2 + 3 + 4)
+
+
+def pure_constants() -> i32:
+    # Should fold completely to 10
+    return 1 + 2 + 3 + 4
+
+
+def mixed_fold(x: i32, y: i32) -> i32:
+    # (2 + 3) should fold to 5
+    # Result: x + y + 5
+    return x + y + 2 + 3
+
+
+def multiply_constants(x: i32) -> i32:
+    # (2 * 3 * 4) should fold to 24
+    # Result: x * 24
+    return x * (2 * 3 * 4)
+
+
+def complex_constants(x: i32) -> i32:
+    # Mix of operations on constants
+    # (10 - 5) * (2 + 1) = 5 * 3 = 15
+    return x + (10 - 5) * (2 + 1)
+
+
+def shift_constant(x: i32) -> i32:
+    # 1 << 4 = 16
+    # Result: x + 16
+    return x + (1 << 4)
+
+
+def associative_fold(x: i32) -> i32:
+    # With associativity: x + (1 + 2)
+    # After constant fold: x + 3
+    return (x + 1) + 2
+
+
+def chain_constants() -> i32:
+    # All constants - should fold completely
+    a: i32 = 1 + 2      # 3
+    b: i32 = 3 + 4      # 7
+    c: i32 = a + b      # 10
+    return c
+
+
+def partial_chain(x: i32) -> i32:
+    # Mix of variable and constants
+    a: i32 = 5 + 10     # 15
+    b: i32 = x + a      # x + 15
+    c: i32 = b + 20     # x + 35
+    return c

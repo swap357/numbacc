@@ -1,0 +1,32 @@
+"""
+Arithmetic test program - Pure computation, no control flow.
+
+Used for benchmarking cost models on simple arithmetic operations.
+"""
+
+def chain(x: i32) -> i32:
+    """Chain of arithmetic operations."""
+    y = x + 1
+    y = y * 2
+    y = y + 3
+    y = y - 1
+    return y
+
+
+def quadratic(a: i32, b: i32, c: i32, x: i32) -> i32:
+    """Compute ax^2 + bx + c."""
+    x2 = x * x
+    ax2 = a * x2
+    bx = b * x
+    result = ax2 + bx + c
+    return result
+
+
+def main() -> i32:
+    result = chain(10)
+    print(result)
+
+    q = quadratic(1, 2, 3, 4)
+    print(q)
+
+    return 0

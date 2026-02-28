@@ -1,0 +1,49 @@
+# Strength Reduction Test Program
+#
+# This program tests whether the cost model correctly prefers:
+#   - shift operations over multiplication by powers of 2
+#   - addition over multiplication where equivalent
+#
+# The e-graph will contain alternatives:
+#   x * 2  ↔  x + x  ↔  x << 1
+#   x * 4  ↔  x << 2
+#   x * 8  ↔  x << 3
+#   x * 16 ↔  x << 4
+#
+# A good cost model should prefer shift (cheapest) over add over mul.
+
+def multiply_by_powers(x: i32) -> i32:
+    # Each of these can become shifts
+    # x*2 + x*4 + x*8 + x*16 = 2x + 4x + 8x + 16x = 30x
+    # Or: (x<<1) + (x<<2) + (x<<3) + (x<<4)
+    return x*2 + x*4 + x*8 + x*16
+
+
+def double_by_add(x: i32) -> i32:
+    # x + x should be equivalent to x * 2 and x << 1
+    return x + x
+
+
+def quadruple(x: i32) -> i32:
+    # x * 4 = x << 2 = (x + x) + (x + x)
+    return x * 4
+
+
+def octuple(x: i32) -> i32:
+    # x * 8 = x << 3
+    return x * 8
+
+
+def mixed_powers(x: i32, y: i32) -> i32:
+    # Mix of operations to test combined strength reduction
+    # x*2 + y*4 - x*8
+    return x*2 + y*4 - x*8
+
+
+def chain_multiply(x: i32) -> i32:
+    # Chain of multiplications by 2
+    # Each step can be strength-reduced
+    a: i32 = x * 2      # x << 1
+    b: i32 = a * 2      # a << 1 = x << 2
+    c: i32 = b * 2      # b << 1 = x << 3
+    return c            # Should be equivalent to x * 8 = x << 3
